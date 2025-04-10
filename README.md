@@ -1,3 +1,12 @@
+# Serverless Text Streaming Test
+
+Netlify Forum Question - https://answers.netlify.com/t/response-text-is-streaming-only-as-a-single-chunk/144431
+
+Vercel Deployment - https://text-streaming-test.vercel.app
+
+Netlify Deployment - https://text-stream.netlify.app
+
+
 # sv
 
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
