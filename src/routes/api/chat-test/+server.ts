@@ -10,7 +10,17 @@ At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praese
 `;
 
 export const POST: RequestHandler = async ({ request }) => {
-  const { length = 1000, chunkSize = 100 } = await request.json();
+  const {
+    length = 1000,
+    chunkSize = 100,
+    abortTimeout = 0,
+  } = await request.json();
+
+  let abortReason = "";
+
+  console.log(
+    `Received request with length: ${length}, chunkSize: ${chunkSize}, abortTimeout: ${abortTimeout}`
+  );
 
   // Create a simple stream that yields chunks
   const encoder = new TextEncoder();
@@ -23,13 +33,41 @@ export const POST: RequestHandler = async ({ request }) => {
   const stream = new ReadableStream({
     async start(controller) {
       const chunks = fullText.match(new RegExp(`.{1,${chunkSize}}`, "g")) || [];
+      let isAborted = false;
 
-      for (const chunk of chunks) {
-        controller.enqueue(encoder.encode(chunk));
-        await new Promise((resolve) => setTimeout(resolve, 50));
+      console.log(
+        `Starting stream for ${chunks.length} chunks of ${chunkSize} characters each with ${abortTimeout}ms abort timeout`
+      );
+
+      let timeout: number | undefined;
+
+      if (abortTimeout > 0) {
+        // Set up a timeout to handle client disconnection
+        timeout = setTimeout(() => {
+          if (!isAborted) {
+            console.log(
+              `Client disconnected after ${abortTimeout}ms, aborting stream`
+            );
+            abortReason = `Client timeout after ${abortTimeout}ms`;
+            isAborted = true;
+            controller.close();
+          }
+        }, abortTimeout);
       }
 
-      controller.close();
+      try {
+        for (const chunk of chunks) {
+          if (isAborted) break;
+
+          controller.enqueue(encoder.encode(chunk));
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      } finally {
+        timeout && clearTimeout(timeout);
+        if (!isAborted) {
+          controller.close();
+        }
+      }
     },
   });
 
